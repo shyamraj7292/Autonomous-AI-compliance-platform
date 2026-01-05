@@ -1,6 +1,20 @@
 fastapi
-uvicorn
+uvicorn[standard]
 pydantic
 python-dotenv
 httpx
 fpdf2
+# AI & Agents
+google-generativeai
+# Database & RAG
+chromadb
+sqlalchemy
+psycopg2-binary
+# Auth & Security
+python-jose[cryptography]
+passlib[bcrypt]
+# Caching
+redis
+# File Processing
+pypdf
+python-multipart
