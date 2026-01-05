@@ -2,59 +2,97 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { RegulationList } from '@/components/RegulationList';
 import { FileUpload } from '@/components/FileUpload';
-import { Rss, BookOpen, UploadCloud } from 'lucide-react';
-import { triggerScan } from '@/lib/api'; // Re-use triggerScan as a proxy for "ingest"
+import { Rss, BookOpen, UploadCloud, RefreshCw } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
-// Mock Data for Regulations
-const MOCK_REGULATIONS = [
-    { name: 'GDPR', code: 'EU-2016/679', description: 'General Data Protection Regulation', status: 'Active', lastUpdated: '2025-11-15' },
-    { name: 'PCI DSS', code: 'v4.0.1', description: 'Payment Card Industry Data Security Standard', status: 'Active', lastUpdated: '2026-01-02' },
-    { name: 'HIPAA', code: 'US-PL-104-191', description: 'Health Insurance Portability and Accountability Act', status: 'Analysis Pending', lastUpdated: '2024-08-20' },
-];
-
-const MOCK_NEWS = [
-    "New AI Act Clause detected: Article 52 (Transparency)",
-    "PCI DSS v4.0.1: New requirements for WAF logging",
-    "NIST 800-53: Update to Control Family AC-2"
-];
+const API_BASE = 'http://localhost:8000';
 
 export default function Regulations() {
-    const [regulations, setRegulations] = useState(MOCK_REGULATIONS);
-    const [news, setNews] = useState(MOCK_NEWS);
-    const [ingesting, setIngesting] = useState(false);
+    const [regulations, setRegulations] = useState([]);
+    const [news, setNews] = useState([]);
+    const [loading, setLoading] = useState(true);
 
-    const handleUpload = async (file) => {
-        console.log("Uploading file:", file.name);
-        setIngesting(true);
-
-        // Simulate Agent Ingestion
-        // In a real app, we'd send the file to /api/agents/ingest
-        // For now, we trigger a "Scan" to wake up the agents
-        try {
-            await triggerScan();
-            // Add a mock "Pending" regulation to the list
-            setRegulations(prev => [
-                ...prev,
-                {
-                    name: 'Internal Framework',
-                    code: file.name,
-                    description: 'Uploaded Company Policy Document',
-                    status: 'Processing...',
-                    lastUpdated: 'Just now'
-                }
-            ]);
-        } catch (e) {
-            console.error(e);
-        } finally {
-            setIngesting(false);
+    // Load data on mount and from localStorage for persistence
+    useEffect(() => {
+        // Load from localStorage first for instant display
+        const savedRegs = localStorage.getItem('uploadedRegulations');
+        if (savedRegs) {
+            setRegulations(JSON.parse(savedRegs));
         }
+
+        // Then fetch from API
+        loadData();
+    }, []);
+
+    const loadData = async () => {
+        setLoading(true);
+        try {
+            // Get RAG stats to see what's indexed
+            const response = await fetch(`${API_BASE}/api/knowledge/stats`);
+            const stats = await response.json();
+
+            // Get activity logs to show in news feed
+            const actResponse = await fetch(`${API_BASE}/api/agents/activity`);
+            const activities = await actResponse.json();
+
+            // Extract recent scout activities for news
+            const scoutLogs = activities['Regulatory Scout'] || [];
+            const newsItems = scoutLogs.slice(-5).map(log => {
+                if (typeof log === 'object') {
+                    return log.action || JSON.stringify(log);
+                }
+                return log;
+            });
+            setNews(newsItems.length > 0 ? newsItems : ['No recent regulatory updates. Upload a document to start.']);
+
+        } catch (error) {
+            console.error('Failed to load regulations data:', error);
+        }
+        setLoading(false);
     };
+
+    const handleUploadComplete = (result) => {
+        console.log('Upload complete:', result);
+
+        if (result.results) {
+            // Add newly uploaded files to the list
+            const newRegs = result.results.map(r => ({
+                name: r.client || 'Document',
+                code: r.filename,
+                description: `Uploaded policy document (${r.chars_extracted || 0} chars)`,
+                status: r.status === 'processed' ? 'Active' : 'Error',
+                lastUpdated: new Date().toLocaleString()
+            }));
+
+            setRegulations(prev => {
+                const updated = [...prev, ...newRegs];
+                // Persist to localStorage
+                localStorage.setItem('uploadedRegulations', JSON.stringify(updated));
+                return updated;
+            });
+        }
+
+        // Refresh news feed
+        loadData();
+    };
+
+    // Default regulations if none uploaded
+    const displayRegulations = regulations.length > 0 ? regulations : [
+        { name: 'PCI-DSS', code: 'v4.0', description: 'Payment Card Industry Data Security Standard', status: 'Reference', lastUpdated: 'Built-in' },
+        { name: 'GDPR', code: 'EU-2016/679', description: 'General Data Protection Regulation', status: 'Reference', lastUpdated: 'Built-in' },
+    ];
 
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
-            <div className="flex flex-col gap-2">
-                <h1 className="text-3xl font-bold tracking-tight">Regulatory Library</h1>
-                <p className="text-muted-foreground">Manage active frameworks and ingest new policies for the Scout to analyze.</p>
+            <div className="flex justify-between items-center">
+                <div className="flex flex-col gap-2">
+                    <h1 className="text-3xl font-bold tracking-tight">Regulatory Library</h1>
+                    <p className="text-muted-foreground">Upload policies for the Scout agent to analyze.</p>
+                </div>
+                <Button variant="outline" onClick={loadData} disabled={loading}>
+                    <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                    Refresh
+                </Button>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -62,11 +100,11 @@ export default function Regulations() {
                 <Card className="col-span-1 lg:col-span-2 border-dashed border-2 bg-accent/20">
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
-                            <UploadCloud className="h-5 w-5" /> Ingest New Framework
+                            <UploadCloud className="h-5 w-5" /> Upload Documents
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <FileUpload onUpload={handleUpload} />
+                        <FileUpload onUpload={handleUploadComplete} />
                     </CardContent>
                 </Card>
 
@@ -74,7 +112,7 @@ export default function Regulations() {
                 <Card className="col-span-1 bg-gradient-to-br from-blue-900/20 to-purple-900/20 border-none">
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2 text-blue-400">
-                            <Rss className="h-5 w-5" /> Scout Discovery Feed
+                            <Rss className="h-5 w-5" /> Scout Activity Feed
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
@@ -92,9 +130,10 @@ export default function Regulations() {
             {/* Regulation List */}
             <div className="space-y-4">
                 <div className="flex items-center gap-2 text-xl font-semibold">
-                    <BookOpen className="h-6 w-6 text-primary" /> Active Frameworks
+                    <BookOpen className="h-6 w-6 text-primary" />
+                    Uploaded Documents ({regulations.length})
                 </div>
-                <RegulationList regulations={regulations} />
+                <RegulationList regulations={displayRegulations} />
             </div>
         </div>
     );

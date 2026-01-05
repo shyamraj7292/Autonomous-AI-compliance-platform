@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
-import { ShieldCheck, Activity, LayoutDashboard, FileText, AlertTriangle, Settings, Bell, Menu } from 'lucide-react';
+import { ShieldCheck, Activity, LayoutDashboard, FileText, AlertTriangle, Settings, Bell, Menu, Download } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 
@@ -21,6 +21,7 @@ export default function Layout() {
                     <NavItem to="/regulations" icon={<FileText />} label="Regulations" expanded={sidebarOpen} />
                     <NavItem to="/risks" icon={<AlertTriangle />} label="Risk Analysis" expanded={sidebarOpen} />
                     <NavItem to="/activity" icon={<Activity />} label="Activity Log" expanded={sidebarOpen} />
+                    <NavItem to="/reports" icon={<Download />} label="Reports" expanded={sidebarOpen} />
                     <NavItem to="/settings" icon={<Settings />} label="Settings" expanded={sidebarOpen} />
                 </nav>
 

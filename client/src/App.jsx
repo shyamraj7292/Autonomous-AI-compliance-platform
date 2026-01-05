@@ -6,6 +6,7 @@ import Regulations from './pages/Regulations';
 import RiskAnalysis from './pages/RiskAnalysis';
 import ActivityLog from './pages/ActivityLog';
 import Settings from './pages/Settings';
+import Reports from './pages/Reports';
 import Login from './pages/Login';
 import { ProtectedRoute } from './components/ProtectedRoute';
 
@@ -23,6 +24,7 @@ function App() {
           <Route path="regulations" element={<Regulations />} />
           <Route path="risks" element={<RiskAnalysis />} />
           <Route path="activity" element={<ActivityLog />} />
+          <Route path="reports" element={<Reports />} />
           <Route path="settings" element={<Settings />} />
         </Route>
       </Routes>
